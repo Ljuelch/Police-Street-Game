@@ -1,10 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'game_logic.dart';
-import 'map_view.dart';
 import 'sector_polygon.dart';
 
 class MyHomePage extends StatefulWidget {
@@ -31,13 +31,53 @@ class _MyHomePageState extends State<MyHomePage>
   LatLng? _realPosition;
   bool _revealed = false; // false -> check icon, true -> refresh icon
 
+  // Store the distance overlay entry.
+  OverlayEntry? _distanceOverlay;
+
   @override
   void initState() {
     super.initState();
     _pickRandomAddress();
   }
 
+  void _removeDistanceOverlay() {
+    _distanceOverlay?.remove();
+    _distanceOverlay = null;
+  }
+
+  void _showDistanceOverlay(String text) {
+    // Remove any existing overlay.
+    _removeDistanceOverlay();
+    final overlay = Overlay.of(context);
+    _distanceOverlay = OverlayEntry(
+      builder: (context) => Positioned(
+        top: MediaQuery.of(context).padding.top + 20,
+        left: 20,
+        right: 20,
+        child: Material(
+          color: Colors.transparent,
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.7),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(_distanceOverlay!);
+  }
+
   void _pickRandomAddress() {
+    // Remove any existing distance overlay when starting a new round.
+    _removeDistanceOverlay();
+
     final randomAddress = getRandomAddress();
     setState(() {
       _currentAddress = randomAddress;
@@ -64,7 +104,7 @@ class _MyHomePageState extends State<MyHomePage>
   }
 
   /// Smoothly animates the map move from the current center/zoom to [destCenter] and [destZoom].
-  void animateMapMove(LatLng destCenter, double destZoom) {
+  Future<void> animateMapMove(LatLng destCenter, double destZoom) {
     final currentCenter = _currentMapCenter;
     final currentZoom = _currentMapZoom;
     final latTween =
@@ -87,15 +127,18 @@ class _MyHomePageState extends State<MyHomePage>
       _mapController.move(LatLng(newLat, newLng), newZoom);
     });
 
+    final completer = Completer<void>();
     controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
         controller.dispose();
+        completer.complete();
       }
     });
     controller.forward();
+    return completer.future;
   }
 
-  void _confirmGuess() {
+  Future<void> _confirmGuess() async {
     if (_guessPosition == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please tap on the map to make your guess!')),
@@ -124,29 +167,20 @@ class _MyHomePageState extends State<MyHomePage>
     final mapSize = MediaQuery.of(context).size;
     final newZoom = _calculateZoom(paddedBounds, mapSize);
 
-    // Animate the map move.
-    animateMapMove(center, newZoom);
+    // Animate the map move and wait for it to complete.
+    await animateMapMove(center, newZoom);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('You were off by ${distance.toStringAsFixed(2)} meters!'),
-        behavior: SnackBarBehavior.floating,
-        margin: EdgeInsets.only(
-          top: MediaQuery.of(context).padding.top + 20,
-          left: 20,
-          right: 20,
-          bottom: MediaQuery.of(context).size.height - 100,
-        ),
-        duration: const Duration(seconds: 3),
-      ),
-    );
+    // Show the distance overlay (badge) which will remain until refresh.
+    if (mounted) {
+      _showDistanceOverlay('You were off by ${distance.toStringAsFixed(2)} meters!');
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Determine FAB action: if revealed, refresh; if not and marker is set, confirm; else disabled.
-    final fabOnPressed =
-    _revealed ? _pickRandomAddress : (_guessPosition != null ? _confirmGuess : null);
+    final fabOnPressed = _revealed
+        ? _pickRandomAddress
+        : (_guessPosition != null ? _confirmGuess : null);
     final fabIcon = _revealed ? Icons.refresh : Icons.check;
 
     return Scaffold(
@@ -157,7 +191,7 @@ class _MyHomePageState extends State<MyHomePage>
           initialZoom: initialZoom,
           onMapEvent: (event) {
             if (event is MapEventMoveEnd) {
-              // Cast event to dynamic to access center and zoom.
+              // Use dynamic casting to access center and zoom.
               final dynamic e = event;
               _currentMapCenter = e.center;
               _currentMapZoom = e.zoom;
@@ -176,8 +210,6 @@ class _MyHomePageState extends State<MyHomePage>
             urlTemplate:
             'https://api.mapbox.com/styles/v1/zlato1-5/cm91icclf009v01r4dugp3262/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['ACCESS_TOKEN']}',
           ),
-          // Use your separate MapView widget if desired, or keep inline.
-          // Here we'll simply include the layers inline:
           PolygonLayer(
             polygons: [
               Polygon(
@@ -205,16 +237,14 @@ class _MyHomePageState extends State<MyHomePage>
                   point: _guessPosition!,
                   width: 40,
                   height: 40,
-                  child:
-                  const Icon(Icons.location_on, color: Colors.red, size: 40),
+                  child: const Icon(Icons.location_on, color: Colors.red, size: 40),
                 ),
               if (_revealed && _realPosition != null)
                 Marker(
                   point: _realPosition!,
                   width: 40,
                   height: 40,
-                  child: const Icon(Icons.location_on,
-                      color: Colors.green, size: 40),
+                  child: const Icon(Icons.location_on, color: Colors.green, size: 40),
                 ),
             ],
           ),
