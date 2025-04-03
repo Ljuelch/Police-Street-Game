@@ -4,6 +4,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'game_logic.dart';
+import 'map_view.dart';
 import 'sector_polygon.dart';
 
 class MyHomePage extends StatefulWidget {
@@ -13,12 +14,17 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
+class _MyHomePageState extends State<MyHomePage>
+    with TickerProviderStateMixin {
   final MapController _mapController = MapController();
 
   // Initial map settings.
   static const LatLng initialCenter = LatLng(52.491574, 13.395990);
   static const double initialZoom = 13.1;
+
+  // Track the current map center and zoom.
+  LatLng _currentMapCenter = initialCenter;
+  double _currentMapZoom = initialZoom;
 
   Map<String, dynamic>? _currentAddress;
   LatLng? _guessPosition;
@@ -57,6 +63,38 @@ class _MyHomePageState extends State<MyHomePage> {
     return zoom.clamp(0, 18).toDouble();
   }
 
+  /// Smoothly animates the map move from the current center/zoom to [destCenter] and [destZoom].
+  void animateMapMove(LatLng destCenter, double destZoom) {
+    final currentCenter = _currentMapCenter;
+    final currentZoom = _currentMapZoom;
+    final latTween =
+    Tween<double>(begin: currentCenter.latitude, end: destCenter.latitude);
+    final lngTween =
+    Tween<double>(begin: currentCenter.longitude, end: destCenter.longitude);
+    final zoomTween = Tween<double>(begin: currentZoom, end: destZoom);
+
+    final controller = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    final animation =
+    CurvedAnimation(parent: controller, curve: Curves.fastOutSlowIn);
+
+    controller.addListener(() {
+      final newLat = latTween.evaluate(animation);
+      final newLng = lngTween.evaluate(animation);
+      final newZoom = zoomTween.evaluate(animation);
+      _mapController.move(LatLng(newLat, newLng), newZoom);
+    });
+
+    controller.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        controller.dispose();
+      }
+    });
+    controller.forward();
+  }
+
   void _confirmGuess() {
     if (_guessPosition == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,7 +103,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
     setState(() {
-      _revealed = true; // Switch the FAB to refresh.
+      _revealed = true;
     });
 
     final distance = const Distance().as(
@@ -74,9 +112,8 @@ class _MyHomePageState extends State<MyHomePage> {
       _realPosition!,
     );
 
-    // Create bounds that contain both the guess and the real position.
+    // Create bounds that contain both guess and real positions.
     final bounds = LatLngBounds.fromPoints([_guessPosition!, _realPosition!]);
-    // Inflate the bounds by 20% for extra padding.
     final latPadding = (bounds.north - bounds.south) * 0.2;
     final lngPadding = (bounds.east - bounds.west) * 0.2;
     final paddedBounds = LatLngBounds(
@@ -87,11 +124,21 @@ class _MyHomePageState extends State<MyHomePage> {
     final mapSize = MediaQuery.of(context).size;
     final newZoom = _calculateZoom(paddedBounds, mapSize);
 
-    // Move the map to show both markers.
-    _mapController.move(center, newZoom);
+    // Animate the map move.
+    animateMapMove(center, newZoom);
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('You were off by ${distance.toStringAsFixed(2)} meters!')),
+      SnackBar(
+        content: Text('You were off by ${distance.toStringAsFixed(2)} meters!'),
+        behavior: SnackBarBehavior.floating,
+        margin: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 20,
+          left: 20,
+          right: 20,
+          bottom: MediaQuery.of(context).size.height - 100,
+        ),
+        duration: const Duration(seconds: 3),
+      ),
     );
   }
 
@@ -103,12 +150,19 @@ class _MyHomePageState extends State<MyHomePage> {
     final fabIcon = _revealed ? Icons.refresh : Icons.check;
 
     return Scaffold(
-      // No AppBar.
       body: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
           initialCenter: initialCenter,
           initialZoom: initialZoom,
+          onMapEvent: (event) {
+            if (event is MapEventMoveEnd) {
+              // Cast event to dynamic to access center and zoom.
+              final dynamic e = event;
+              _currentMapCenter = e.center;
+              _currentMapZoom = e.zoom;
+            }
+          },
           onTap: (tapPosition, latLng) {
             if (!_revealed) {
               setState(() {
@@ -122,6 +176,8 @@ class _MyHomePageState extends State<MyHomePage> {
             urlTemplate:
             'https://api.mapbox.com/styles/v1/zlato1-5/cm91icclf009v01r4dugp3262/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['ACCESS_TOKEN']}',
           ),
+          // Use your separate MapView widget if desired, or keep inline.
+          // Here we'll simply include the layers inline:
           PolygonLayer(
             polygons: [
               Polygon(
@@ -149,20 +205,21 @@ class _MyHomePageState extends State<MyHomePage> {
                   point: _guessPosition!,
                   width: 40,
                   height: 40,
-                  child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+                  child:
+                  const Icon(Icons.location_on, color: Colors.red, size: 40),
                 ),
               if (_revealed && _realPosition != null)
                 Marker(
                   point: _realPosition!,
                   width: 40,
                   height: 40,
-                  child: const Icon(Icons.location_on, color: Colors.green, size: 40),
+                  child: const Icon(Icons.location_on,
+                      color: Colors.green, size: 40),
                 ),
             ],
           ),
         ],
       ),
-      // Floating Action Button with extra bottom padding and semi-transparent blue background.
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 60.0),
         child: FloatingActionButton(
