@@ -1,8 +1,7 @@
-// lib/sector_polygon.dart
 import 'package:latlong2/latlong.dart';
 
 /// A single polygon that merges all your line segments into one closed shape.
-final List<LatLng> sectorPolygon = [
+const List<LatLng> sectorPolygon = [
   // --- First Feature ---
   LatLng(52.484716175045435, 13.385488422689917),
   LatLng(52.48474517952846, 13.371819033466863),
