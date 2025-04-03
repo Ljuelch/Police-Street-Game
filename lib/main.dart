@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'home_page.dart';
 
-void main() {
+Future<void> main() async {
+  // Load environment variables from .env file at the project root.
+  await dotenv.load(fileName: "./.env");
   runApp(const MyApp());
 }
 

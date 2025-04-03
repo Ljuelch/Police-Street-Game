@@ -5,84 +5,48 @@ final List<Map<String, dynamic>> addressesInSector = [
   {
     'street': 'Clumbiadamm',
     'houseNumber': '1',
-    'lat': 52.5039,
-    'lng': 13.3730,
+    'lat': 52.484697,
+    'lng': 13.389035,
   },
   {
     'street': 'Clumbiadamm',
     'houseNumber': '5',
-    'lat': 52.5037,
-    'lng': 13.3733,
-  },
-  {
-    'street': 'Clumbiadamm',
-    'houseNumber': '10',
-    'lat': 52.5035,
-    'lng': 13.3735,
-  },
-  {
-    'street': 'Clumbiadamm',
-    'houseNumber': '15',
-    'lat': 52.5033,
-    'lng': 13.3737,
-  },
-  {
-    'street': 'Clumbiadamm',
-    'houseNumber': '20',
-    'lat': 52.5031,
-    'lng': 13.3739,
+    'lat': 52.484676158994766,
+    'lng': 13.390177116411056,
   },
   {
     'street': 'Clumbiadamm Ecke Dudenstraße',
     'houseNumber': '',
-    'lat': 52.5038,
-    'lng': 13.3725,
+    'lat': 52.485132792634126,
+    'lng': 13.386057261384423,
   },
   {
-    'street': 'Clumbiadamm Ecke Oranienstraße',
+    'street': 'Clumbiadamm Ecke Golßener Straße',
     'houseNumber': '',
-    'lat': 52.5038,
-    'lng': 13.3745,
+    'lat': 52.483861,
+    'lng': 13.400351,
   },
 
   // Dudenstraße (West boundary) – placed along the western edge of the polygon
   {
     'street': 'Dudenstraße',
     'houseNumber': '3',
-    'lat': 52.4925,
-    'lng': 13.3680,
-  },
-  {
-    'street': 'Dudenstraße',
-    'houseNumber': '8',
-    'lat': 52.4920,
-    'lng': 13.3682,
-  },
-  {
-    'street': 'Dudenstraße',
-    'houseNumber': '12',
-    'lat': 52.4915,
-    'lng': 13.3685,
-  },
-  {
-    'street': 'Dudenstraße',
-    'houseNumber': '20',
-    'lat': 52.4910,
-    'lng': 13.3688,
+    'lat': 52.484857642008436,
+    'lng': 13.38403664178231,
   },
   {
     'street': 'Dudenstraße',
     'houseNumber': '25',
-    'lat': 52.4905,
-    'lng': 13.3690,
+    'lat': 52.48480802759795,
+    'lng': 13.381532334993857,
   },
   {
-    'street': 'Dudenstraße Ecke Reichenbachstraße',
+    'street': 'Dudenstraße Ecke Boelckestraße',
     'houseNumber': '',
-    'lat': 52.4900,
-    'lng': 13.3692,
+    'lat': 52.484903648017166,
+    'lng': 13.376834364267797,
   },
-
+/*
   // Am Landwehrkanal (East boundary) – placed along the eastern edge of the polygon
   {
     'street': 'Am Landwehrkanal',
@@ -400,5 +364,5 @@ final List<Map<String, dynamic>> addressesInSector = [
     'houseNumber': '',
     'lat': 52.5004,
     'lng': 13.4025,
-  },
+  },*/
 ];

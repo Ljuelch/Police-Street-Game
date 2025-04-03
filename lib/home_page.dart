@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'addresses.dart';
@@ -36,6 +38,18 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  /// Calculates an approximate zoom level that fits the [bounds] into the available [mapSize].
+  double _calculateZoom(LatLngBounds bounds, Size mapSize) {
+    // Compute the differences in degrees.
+    final latDiff = bounds.north - bounds.south;
+    final lngDiff = bounds.east - bounds.west;
+    final maxDiff = math.max(latDiff, lngDiff);
+
+    // At zoom 0, the world (360 degrees) corresponds to 256 pixels.
+    final zoom = math.log((mapSize.width * 360) / (256 * maxDiff)) / math.ln2;
+    return zoom.clamp(0, 18).toDouble();
+  }
+
   void _confirmGuess() {
     if (_guessPosition == null) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -52,6 +66,23 @@ class _MyHomePageState extends State<MyHomePage> {
       _guessPosition!,
       _realPosition!,
     );
+
+    // Create a bounds that contains both the guess and the real location.
+    final bounds = LatLngBounds.fromPoints([_guessPosition!, _realPosition!]);
+    // Inflate the bounds by 20% to add extra padding.
+    final latPadding = (bounds.north - bounds.south) * 0.2;
+    final lngPadding = (bounds.east - bounds.west) * 0.2;
+    final paddedBounds = LatLngBounds(
+      LatLng(bounds.south - latPadding, bounds.west - lngPadding),
+      LatLng(bounds.north + latPadding, bounds.east + lngPadding),
+    );
+    final center = paddedBounds.center;
+    final mapSize = MediaQuery.of(context).size;
+    final newZoom = _calculateZoom(paddedBounds, mapSize);
+
+    // Move the map so that the padded bounds are visible.
+    _mapController.move(center, newZoom);
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('You were off by ${distance.toStringAsFixed(2)} meters!')),
     );
@@ -75,19 +106,21 @@ class _MyHomePageState extends State<MyHomePage> {
         options: MapOptions(
           initialCenter: LatLng(52.491574, 13.391966),
           initialZoom: 12.9,
+          // Disable further updates after guess is confirmed.
           onTap: (tapPosition, latLng) {
-            setState(() {
-              _guessPosition = latLng;
-            });
+            if (!_revealed) {
+              setState(() {
+                _guessPosition = latLng;
+              });
+            }
           },
         ),
         children: [
           TileLayer(
             urlTemplate:
-            'https://api.mapbox.com/styles/v1/zlato1-5/cm91icclf009v01r4dugp3262/tiles/256/{z}/{x}/{y}@2x?access_token=pk.eyJ1IjoiemxhdG8xLTUiLCJhIjoiY204cWdiMnY3MGhzMTJqcXhmeWxybWgydiJ9.evVqvNz-kvwXtPTtVsaGqA',
+            'https://api.mapbox.com/styles/v1/zlato1-5/cm91icclf009v01r4dugp3262/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['ACCESS_TOKEN']}',
           ),
-
-          // Draw the big single polygon
+          // Draw the sector polygon.
           PolygonLayer(
             polygons: [
               Polygon(
@@ -98,8 +131,18 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ],
           ),
-
-          // Markers for guess + real location
+          // Draw a line connecting the guess and the real position after confirmation.
+          if (_revealed && _guessPosition != null && _realPosition != null)
+            PolylineLayer(
+              polylines: [
+                Polyline(
+                  points: [_guessPosition!, _realPosition!],
+                  color: Colors.black,
+                  strokeWidth: 2,
+                ),
+              ],
+            ),
+          // Markers for guess and real location.
           MarkerLayer(
             markers: [
               if (_guessPosition != null)
