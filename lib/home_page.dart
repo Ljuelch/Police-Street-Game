@@ -16,10 +16,14 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   final MapController _mapController = MapController();
 
+  // Initial map settings.
+  static const LatLng initialCenter = LatLng(52.491574, 13.395990);
+  static const double initialZoom = 13.1;
+
   Map<String, dynamic>? _currentAddress;
   LatLng? _guessPosition;
   LatLng? _realPosition;
-  bool _revealed = false;
+  bool _revealed = false; // false -> check icon, true -> refresh icon
 
   @override
   void initState() {
@@ -35,16 +39,20 @@ class _MyHomePageState extends State<MyHomePage> {
       _guessPosition = null;
       _revealed = false;
     });
+
+    // Reset the map view to the initial center and zoom after build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _mapController.move(initialCenter, initialZoom);
+      }
+    });
   }
 
   /// Calculates an approximate zoom level that fits the [bounds] into the available [mapSize].
   double _calculateZoom(LatLngBounds bounds, Size mapSize) {
-    // Compute the differences in degrees.
     final latDiff = bounds.north - bounds.south;
     final lngDiff = bounds.east - bounds.west;
     final maxDiff = math.max(latDiff, lngDiff);
-
-    // At zoom 0, the world (360 degrees) corresponds to 256 pixels.
     final zoom = math.log((mapSize.width * 360) / (256 * maxDiff)) / math.ln2;
     return zoom.clamp(0, 18).toDouble();
   }
@@ -57,7 +65,7 @@ class _MyHomePageState extends State<MyHomePage> {
       return;
     }
     setState(() {
-      _revealed = true;
+      _revealed = true; // Switch the FAB to refresh.
     });
 
     final distance = const Distance().as(
@@ -66,9 +74,9 @@ class _MyHomePageState extends State<MyHomePage> {
       _realPosition!,
     );
 
-    // Create a bounds that contains both the guess and the real location.
+    // Create bounds that contain both the guess and the real position.
     final bounds = LatLngBounds.fromPoints([_guessPosition!, _realPosition!]);
-    // Inflate the bounds by 20% to add extra padding.
+    // Inflate the bounds by 20% for extra padding.
     final latPadding = (bounds.north - bounds.south) * 0.2;
     final lngPadding = (bounds.east - bounds.west) * 0.2;
     final paddedBounds = LatLngBounds(
@@ -79,7 +87,7 @@ class _MyHomePageState extends State<MyHomePage> {
     final mapSize = MediaQuery.of(context).size;
     final newZoom = _calculateZoom(paddedBounds, mapSize);
 
-    // Move the map so that the padded bounds are visible.
+    // Move the map to show both markers.
     _mapController.move(center, newZoom);
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -89,23 +97,18 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    // Determine FAB action: if revealed, refresh; if not and marker is set, confirm; else disabled.
+    final fabOnPressed =
+    _revealed ? _pickRandomAddress : (_guessPosition != null ? _confirmGuess : null);
+    final fabIcon = _revealed ? Icons.refresh : Icons.check;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Street Names Game'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _pickRandomAddress,
-            tooltip: 'New Address',
-          ),
-        ],
-      ),
+      // No AppBar.
       body: FlutterMap(
         mapController: _mapController,
         options: MapOptions(
-          initialCenter: const LatLng(52.491574, 13.391966),
-          initialZoom: 12.9,
-          // Disable further updates after guess is confirmed.
+          initialCenter: initialCenter,
+          initialZoom: initialZoom,
           onTap: (tapPosition, latLng) {
             if (!_revealed) {
               setState(() {
@@ -119,7 +122,6 @@ class _MyHomePageState extends State<MyHomePage> {
             urlTemplate:
             'https://api.mapbox.com/styles/v1/zlato1-5/cm91icclf009v01r4dugp3262/tiles/256/{z}/{x}/{y}@2x?access_token=${dotenv.env['ACCESS_TOKEN']}',
           ),
-          // Draw the sector polygon.
           PolygonLayer(
             polygons: [
               Polygon(
@@ -130,7 +132,6 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
             ],
           ),
-          // Draw a line connecting the guess and the real position after confirmation.
           if (_revealed && _guessPosition != null && _realPosition != null)
             PolylineLayer(
               polylines: [
@@ -141,7 +142,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ],
             ),
-          // Markers for guess and real location.
           MarkerLayer(
             markers: [
               if (_guessPosition != null)
@@ -162,9 +162,14 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _confirmGuess,
-        child: const Icon(Icons.check),
+      // Floating Action Button with extra bottom padding and semi-transparent blue background.
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 60.0),
+        child: FloatingActionButton(
+          backgroundColor: Colors.blue.withOpacity(0.7),
+          onPressed: fabOnPressed,
+          child: Icon(fabIcon),
+        ),
       ),
       bottomNavigationBar: BottomAppBar(
         child: Padding(
