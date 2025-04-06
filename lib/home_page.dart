@@ -59,12 +59,12 @@ class _MyHomePageState extends State<MyHomePage>
           child: Container(
             padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
             decoration: BoxDecoration(
-              color: Colors.black.withOpacity(0.7),
+              color: Colors.blue.withOpacity(0.7),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
               text,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
+              style: const TextStyle(color: Colors.black, fontSize: 16),
               textAlign: TextAlign.center,
             ),
           ),
@@ -172,7 +172,7 @@ class _MyHomePageState extends State<MyHomePage>
 
     // Show the distance overlay (badge) which will remain until refresh.
     if (mounted) {
-      _showDistanceOverlay('You were off by ${distance.toStringAsFixed(2)} meters!');
+      _showDistanceOverlay('Du liegst ${distance.toStringAsFixed(0)} Meter daneben!');
     }
   }
 
@@ -259,14 +259,20 @@ class _MyHomePageState extends State<MyHomePage>
         ),
       ),
       bottomNavigationBar: BottomAppBar(
-        child: Padding(
-          padding: const EdgeInsets.all(12.0),
-          child: Text(
-            _currentAddress != null
-                ? 'Find: ${_currentAddress!['street']} ${_currentAddress!['houseNumber']}'
-                : 'Loading address...',
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 16),
+        child: Container(
+          // Increase height to allow two lines
+          height: 60,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Center(
+            child: Text(
+              _currentAddress != null
+                  ? 'Markiere: ${_currentAddress!['street']} ${_currentAddress!['houseNumber']}'
+                  : 'Adresse wird geladen...',
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 16),
+              maxLines: 2, // Allow up to two lines
+              overflow: TextOverflow.ellipsis, // Ellipsis if text is still too long
+            ),
           ),
         ),
       ),
