@@ -54,7 +54,7 @@ final List<Map<String, dynamic>> addressesInSector = [
     'lng': 13.394423185744124,
   },
   {
-    'street': 'Viktoriapark Wasserpark',
+    'street': 'Viktoriapark Wasserfall',
     'houseNumber': '',
     'lat': 52.489752191214315,
     'lng': 13.381938993186088,
