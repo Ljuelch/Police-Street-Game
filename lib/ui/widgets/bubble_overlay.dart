@@ -8,11 +8,31 @@ class BubbleOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final street = address?['street'] ?? '';
+    final houseNumber = address?['houseNumber'] ?? '';
+    final displayText = '$street $houseNumber';
+
+    final callPhrases = [
+      "Streifenwagen zur Kontrolle bitte fahren nach",
+      "Anfahrt erforderlich, Zielort",
+      "Bitte übernehmen Sie den Einsatz bei",
+      "Dringender Einsatz in der Nähe von",
+      "Streifenwagen bitte melden bei",
+      "Einsatzauftrag: Anfahrt zu",
+      "Polizeipräsenz benötigt in",
+      "Bitte überprüfen Sie folgenden Ort"
+    ];
+
+    final intro = (address != null)
+        ? (callPhrases..shuffle()).first
+        : 'Adresse wird geladen...';
+
     return Container(
       key: const ValueKey('bubbleView'),
       margin: const EdgeInsets.only(bottom: 20),
       child: Stack(
         children: [
+          // Walkie-talkie
           Positioned(
             bottom: 0,
             left: 10,
@@ -22,6 +42,8 @@ class BubbleOverlay extends StatelessWidget {
               height: 190,
             ),
           ),
+
+          // Speech bubble with text
           Positioned(
             bottom: 140,
             left: 75,
@@ -30,22 +52,51 @@ class BubbleOverlay extends StatelessWidget {
               children: [
                 Image.asset(
                   'assets/speechbubble.png',
-                  width: 240,
+                  width: 200,
                 ),
                 SizedBox(
-                  width: 180,
-                  child: Text(
-                    address != null
-                        ? '${address!['street']} ${address!['houseNumber']}'
-                        : 'Adresse wird geladen...',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: Colors.black,
-                      fontWeight: FontWeight.w600,
+                  width: 160,
+                  height: 150,
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(bottom: 40),
+                      child: address != null
+                          ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$intro:',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 12.5,
+                              color: Colors.black87,
+                              fontWeight: FontWeight.w400,
+                              height: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            displayText,
+                            textAlign: TextAlign.center,
+                            softWrap: true, // ✅ enables natural line break
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Colors.black,
+                              fontWeight: FontWeight.w600,
+                              height: 1.3,
+                            ),
+                          ),
+                        ],
+                      )
+                          : const Text(
+                        'Adresse wird geladen...',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ],

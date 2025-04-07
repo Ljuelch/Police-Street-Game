@@ -9,9 +9,8 @@ import '../../logic/distance_utils.dart';
 import 'distance_overlay.dart';
 import 'marker_layer_widget.dart';
 import 'polygon_layer_widget.dart';
+import 'game_dialogs.dart';
 import 'bubble_overlay.dart';
-import 'bottom_bar.dart';
-import 'map_controls.dart';
 
 class MapWidget extends StatefulWidget {
   const MapWidget({super.key});
@@ -34,8 +33,13 @@ class _MapWidgetState extends State<MapWidget> with TickerProviderStateMixin {
   bool _revealed = false;
   bool _mapInteracted = false;
   bool _ignoreNextMapEvent = false;
+  double _lifePercentage = 1.0;
+  int _roundCounter = 0;
 
   OverlayEntry? _distanceOverlay;
+
+  bool _isAnimatingLife = false;
+  double _barWidth = 20.0;
 
   @override
   void initState() {
@@ -104,8 +108,67 @@ class _MapWidgetState extends State<MapWidget> with TickerProviderStateMixin {
       toZoom: newZoom,
     );
 
+    final newLife = calculateLifeReduction(_lifePercentage, distance);
+
     if (mounted) {
       _showDistanceOverlay('Du liegst ${distance.toStringAsFixed(0)} Meter daneben!');
+    }
+
+    _roundCounter++;
+
+    setState(() => _isAnimatingLife = true);
+
+    // Step 1: Make bar wider
+    setState(() => _barWidth = 30.0);
+    await Future.delayed(const Duration(milliseconds: 400)); // ⬅️ stays wider longer
+
+// Step 2: Reduce life
+    setState(() {
+      _lifePercentage = newLife;
+    });
+
+// Step 3: Stay wide briefly after reduction
+    await Future.delayed(const Duration(milliseconds: 500));
+
+// Step 4: Shrink bar width back
+    setState(() => _barWidth = 20.0);
+
+// Step 5: Finish animation
+    await Future.delayed(const Duration(milliseconds: 300));
+    setState(() => _isAnimatingLife = false);
+
+    setState(() {
+      _lifePercentage = newLife;
+      _barWidth = 20.0;
+    });
+
+    await Future.delayed(const Duration(milliseconds: 300));
+    setState(() => _isAnimatingLife = false);
+
+    if (_lifePercentage <= 0) {
+      setState(() => _mapInteracted = true);
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (mounted) {
+        await showLossDialog(context, () {
+          setState(() {
+            _lifePercentage = 1.0;
+            _roundCounter = 0;
+            _mapInteracted = false;
+          });
+          _pickRandomAddress();
+        });
+      }
+    } else if (_roundCounter >= 10) {
+      await Future.delayed(const Duration(milliseconds: 1000));
+      if (mounted) {
+        showVictoryDialog(context, () {
+          setState(() {
+            _lifePercentage = 1.0;
+            _roundCounter = 0;
+          });
+          _pickRandomAddress();
+        });
+      }
     }
   }
 
@@ -120,6 +183,8 @@ class _MapWidgetState extends State<MapWidget> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final fabIcon = _revealed ? Icons.refresh : Icons.check;
+
     return Scaffold(
       body: Stack(
         children: [
@@ -174,7 +239,6 @@ class _MapWidgetState extends State<MapWidget> with TickerProviderStateMixin {
             ],
           ),
 
-          // Bubble / Walkie
           Positioned.fill(
             child: Align(
               alignment: Alignment.bottomCenter,
@@ -194,12 +258,13 @@ class _MapWidgetState extends State<MapWidget> with TickerProviderStateMixin {
                     ),
                   );
                 },
-                child: !_mapInteracted ? BubbleOverlay(address: _currentAddress) : const SizedBox.shrink(),
+                child: !_mapInteracted
+                    ? BubbleOverlay(address: _currentAddress)
+                    : const SizedBox.shrink(),
               ),
             ),
           ),
 
-          // Bottom bar
           Positioned(
             bottom: 0,
             left: 0,
@@ -208,17 +273,82 @@ class _MapWidgetState extends State<MapWidget> with TickerProviderStateMixin {
               duration: const Duration(milliseconds: 200),
               switchInCurve: Curves.easeIn,
               switchOutCurve: Curves.easeOut,
-              transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
-              child: _mapInteracted ? BottomBar(address: _currentAddress) : const SizedBox.shrink(),
+              transitionBuilder: (child, animation) =>
+                  FadeTransition(opacity: animation, child: child),
+              child: _mapInteracted ? _buildBottomBar() : const SizedBox.shrink(),
             ),
           ),
+
+          // Game bar
+          Positioned(
+            top: 335,
+            bottom: 200,
+            right: 10,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+              width: _barWidth,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                border: Border.all(color: Colors.black),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: TweenAnimationBuilder<double>(
+                duration: const Duration(milliseconds: 300),
+                tween: Tween<double>(begin: 0.0, end: _lifePercentage),
+                builder: (context, value, child) {
+                  return Align(
+                    alignment: Alignment.bottomCenter,
+                    child: FractionallySizedBox(
+                      heightFactor: value,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: value > 0.5
+                              ? Colors.blue
+                              : value > 0.2
+                              ? Colors.yellow
+                              : Colors.red,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+
         ],
       ),
-      floatingActionButton: MapControls(
-        revealed: _revealed,
-        onConfirm: _confirmGuess,
-        onReset: _pickRandomAddress,
-        guessPosition: _guessPosition,
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 60.0),
+        child: FloatingActionButton(
+          backgroundColor:
+          _isAnimatingLife ? Colors.grey : Colors.blue.withOpacity(0.7),
+          onPressed: _isAnimatingLife ? null : (_revealed ? _pickRandomAddress : _confirmGuess),
+          child: Icon(fabIcon),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomBar() {
+    return Container(
+      key: const ValueKey('bottomBar'),
+      height: 60,
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      color: Colors.white,
+      child: Center(
+        child: Text(
+          _currentAddress != null
+              ? '${_currentAddress!['street']} ${_currentAddress!['houseNumber']}'
+              : 'Adresse wird geladen...',
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 16),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }

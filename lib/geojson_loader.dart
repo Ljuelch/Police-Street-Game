@@ -4,7 +4,7 @@ import 'package:latlong2/latlong.dart';
 
 /// A small class to store each feature's geometry type and its list of points.
 class FeatureData {
-  final String type; // e.g., "LineString" or "Polygon"
+  final String type;
   final List<LatLng> points;
 
   FeatureData(this.type, this.points);
@@ -30,22 +30,18 @@ Future<List<FeatureData>> loadFeaturesFromGeojson(String assetPath) async {
     final type = geometry['type'];
 
     if (type == 'LineString') {
-      // Convert each coordinate [lng, lat] to LatLng.
       final coords = geometry['coordinates'] as List;
       final points = coords
-          .map((c) => LatLng(c[1], c[0])) // swap to lat, lng
+          .map((c) => LatLng(c[1], c[0]))
           .toList();
       result.add(FeatureData('LineString', points));
     } else if (type == 'Polygon') {
-      // A Polygon's coordinates is a list of "rings". The first ring is the outer boundary.
-      // We'll just take the first ring for a simple polygon.
       final coords = geometry['coordinates'][0] as List;
       final points = coords
           .map((c) => LatLng(c[1], c[0]))
           .toList();
       result.add(FeatureData('Polygon', points));
     }
-    // If you had MultiLineString or MultiPolygon, you'd parse them similarly.
   }
 
   return result;
