@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="police_street_game"
+        android:label="Rhekes Hood"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

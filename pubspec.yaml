@@ -61,6 +61,8 @@ flutter:
     - assets/map.geojson
     - assets/speechbubble.png
     - assets/walkietalkie.svg
+    - assets/Berliner_Polizei.png
+    - assets/officermainmenu.jpg
     - .env
 
   # The following line ensures that the Material Icons font is
