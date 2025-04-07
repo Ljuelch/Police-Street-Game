@@ -36,7 +36,7 @@ Future<void> showLossDialog(BuildContext context, VoidCallback onRetry) {
             ),
             const SizedBox(height: 10),
             const Text(
-              "Du hast dich verfahren!",
+              "Du hast dich verfahren...",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 17,
